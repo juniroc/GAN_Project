@@ -1,0 +1,12 @@
+
+# ipynb_checkpoints directory
+.ipynb_checkpoints/
+/CycleGAN/.ipynb_checkpoints/
+/DCGAN/.ipynb_checkpoints/
+
+# weight_files directory
+/CycleGAN/weight_files/
+
+# DCGAN training_checkpoints
+/DCGAN/training_checkpoints/
+
