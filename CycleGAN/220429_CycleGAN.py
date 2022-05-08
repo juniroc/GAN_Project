@@ -22,7 +22,7 @@ autotune = tf.data.AUTOTUNE
 
 ### fix config
 # Define the standard image size.
-orig_img_size = (256, 256)
+orig_img_size = (400, 400)
 # Size of the random crops to be used during training.
 input_img_size = (1, 256, 256, 3)
 
@@ -33,22 +33,40 @@ gamma_init = keras.initializers.RandomNormal(mean=0.0, stddev=0.02)
 
 ### parameters
 buffer_size = 256
-batch_size = 1 
-EPOCHS = 2000
+batch_size = 1
+EPOCHS = 1000
+
 directory = 'hockney/'
-version = 'v3/'
-weight_name = '2000_epochs'
+version = 'v5/'
+weight_name = '1000_epochs'
 version_dir = './weight_files/' + directory + version
 
-per_save = 100
+per_save = 50
+
+if EPOCHS%per_save==0:
+    num_chpt=EPOCHS//per_save
+else:
+    num_chpt = EPOCHS//per_save+1
+
+print('\n')
+print("############################\n")
+
+print(f"save checkpoint per {per_save} epochs")
+
+print(f'It will save {num_chpt} chpt_files')
+
+print('\n')
+print("############################\n")
 
 
 ### load dataset
 # original_picture
-ds_ori = tf.keras.utils.image_dataset_from_directory('../images/real_hockney', batch_size=batch_size, image_size = orig_img_size, shuffle=False)
+# ds_ori = tf.keras.utils.image_dataset_from_directory('../images/real_hockney', batch_size=batch_size, image_size = orig_img_size, shuffle=False)
+ds_ori = tf.keras.utils.image_dataset_from_directory('../images/real_hockney', batch_size=batch_size, image_size = orig_img_size)
 
 # pixel_art
-ds_tar = tf.keras.utils.image_dataset_from_directory('../images/hockney', batch_size=batch_size, image_size = orig_img_size, shuffle=False)
+# ds_tar = tf.keras.utils.image_dataset_from_directory('../images/hockney', batch_size=batch_size, image_size = orig_img_size, shuffle=False)
+ds_tar = tf.keras.utils.image_dataset_from_directory('../images/hockney', batch_size=batch_size, image_size = orig_img_size)
 
 # custom_testset
 ds_cus = tf.keras.utils.image_dataset_from_directory('../images/custom', batch_size=batch_size, image_size = orig_img_size)
@@ -88,10 +106,13 @@ def preprocess_test_image(img, label):
     return img
 
 
-### preprocessing
-ds_ori_t = ds_ori.map(preprocess_train_image, num_parallel_calls=autotune).cache()
+# ## preprocessing
+# ds_ori_t = ds_ori.map(preprocess_train_image, num_parallel_calls=autotune).cache()
 
-ds_tar_t = ds_tar.map(preprocess_train_image, num_parallel_calls=autotune).cache()
+# ds_tar_t = ds_tar.map(preprocess_train_image, num_parallel_calls=autotune).cache()
+ds_ori_t = ds_ori.map(preprocess_train_image, num_parallel_calls=autotune).cache().shuffle(buffer_size)
+
+ds_tar_t = ds_tar.map(preprocess_train_image, num_parallel_calls=autotune).cache().shuffle(buffer_size)
 
 ds_cus_t = ds_cus.map(preprocess_train_image, num_parallel_calls=autotune).cache().shuffle(buffer_size)
 
@@ -124,7 +145,7 @@ def discriminator_loss(real, generated):
 
 def generator_loss(generated):
     return loss_obj(tf.ones_like(generated), generated)
-    
+
 
 def calc_cycle_loss(real_image, cycled_image):
     loss1 = tf.reduce_mean(tf.abs(real_image - cycled_image))
@@ -166,11 +187,13 @@ ckpt = tf.train.Checkpoint(generator_g=generator_g,
 ckpt_manager = tf.train.CheckpointManager(ckpt, 
                                         checkpoint_path, 
                                         checkpoint_name=weight_name, 
-                                        max_to_keep=5)
+                                        max_to_keep=num_chpt)
 
 # if a checkpoint exists, restore the latest checkpoint.
 if ckpt_manager.latest_checkpoint:
     ckpt.restore(ckpt_manager.latest_checkpoint)
+    print('\n')
+    print("############################\n")
     print ('Latest checkpoint restored!!')
 
 
@@ -254,14 +277,21 @@ def train_step(real_x, real_y):
                                                 discriminator_y.trainable_variables))
 
 
+print('\n')
+print("############################\n")
+
 print(f"strat training!!!")
-print(f"save checkpoint per {per_save} epochs")
 
 start = time.time()
 start_time = datetime.fromtimestamp(start)
 print(f'start training - time : {start_time}')
 time_ = time.time()
+
+print('\n')
+print("############################\n")
+
 for epoch in range(EPOCHS):
+    epoch_time = time.time()
     
     n = 0
     for image_x, image_y in tf.data.Dataset.zip((ds_ori_t, ds_tar_t)):
@@ -275,9 +305,12 @@ for epoch in range(EPOCHS):
     # is clearly visible.
     # generate_images(generator_g, sample_horse)
     epoch_ = epoch+1
-    print(f'finished : {epoch_} / {EPOCHS} epochs')
 
-    time_ += time.time()
+    fin_time = time.time()
+    take_time = fin_time - epoch_time
+    time_ += take_time
+    
+    print(f'finished : {epoch_} / {EPOCHS} epochs, time taken : {take_time} sec')
 
     if (epoch_) % per_save == 0:
         # save checkpoint
@@ -285,5 +318,5 @@ for epoch in range(EPOCHS):
         print ('Saving checkpoint for epoch {} at {}'.format(epoch+1,
                                                      ckpt_save_path))
 
-        print ('Time taken for epoch {} is {} sec : {}\n'.format(epoch + 1,
-                                                  time_-start, datetime.fromtimestamp(time_-start)))
+        print ('Time taken for epoch {} is {} sec\n'.format(epoch + 1,
+                                                  time_))
