@@ -10,3 +10,6 @@
 # DCGAN training_checkpoints
 /DCGAN/training_checkpoints/
 
+# Ipynb files
+/DCGAN/*.ipynb
+/CycleGAN/*.ipynb
